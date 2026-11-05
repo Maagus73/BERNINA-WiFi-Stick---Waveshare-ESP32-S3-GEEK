@@ -1,0 +1,13 @@
+# DE: CN und SAN muessen dem tatsaechlichen DNS-Namen entsprechen.
+# EN: CN and SAN must match your actual DNS hostname.
+[req]
+prompt = no
+distinguished_name = dn
+req_extensions = v3_server
+[dn]
+CN = nas.home.arpa
+[v3_server]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = DNS:nas.home.arpa

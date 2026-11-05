@@ -1,0 +1,44 @@
+type: vertical-stack
+cards:
+  - type: markdown
+    title: BERNINA WiFi Stick
+    content: >-
+      [Stick-Weboberfläche öffnen]({{ state_attr('sensor.bernina_wifi_stick_status','web_url') or 'http://192.168.1.123/' }})
+  - type: entities
+    title: Stick Status
+    entities:
+      - sensor.bernina_wifi_stick_status
+      - sensor.bernina_wifi_stick_speicher
+      - binary_sensor.bernina_wifi_stick_wlan
+      - binary_sensor.bernina_wifi_stick_aktiv
+      - sensor.bernina_wifi_stick_ergebnis
+      - sensor.bernina_wifi_stick_fortschritt
+      - sensor.bernina_wifi_stick_letzter_erfolg
+      - sensor.bernina_wifi_stick_laufzeit
+      - sensor.bernina_wifi_stick_intervall
+      - binary_sensor.bernina_wifi_stick_automatik_pausiert
+  - type: entities
+    title: Aktionen
+    entities:
+      - button.bernina_app_uebernehmen
+      - button.bernina_jetzt_abgleichen
+      - button.bernina_automatik_pausieren
+      - button.bernina_automatik_fortsetzen
+      - button.bernina_usb_anmelden
+      - switch.bernina_bildschirmschoner
+      - input_text.bernina_stick_reparatur_bestaetigung
+      - button.bernina_spiegel_reparieren
+  - type: entities
+    title: Konfiguration
+    entities:
+      - input_number.bernina_stick_intervall
+      - input_select.bernina_stick_einheit
+      - button.bernina_intervall_speichern
+  - type: history-graph
+    title: Verlauf
+    hours_to_show: 24
+    entities:
+      - sensor.bernina_wifi_stick_status
+      - sensor.bernina_wifi_stick_speicher
+      - sensor.bernina_wifi_stick_ergebnis
+      - binary_sensor.bernina_wifi_stick_aktiv

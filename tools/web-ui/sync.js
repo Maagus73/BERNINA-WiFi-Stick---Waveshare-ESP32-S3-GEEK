@@ -1,0 +1,104 @@
+'use strict';
+const el=id=>document.getElementById(id);
+function setText(id,text){if(el(id).textContent!==text)el(id).textContent=text;}
+function setProperty(node,key,value){if(node[key]!==value)node[key]=value;}
+let retryDirty=false;
+let current=null,requestBusy=false,configDirty=false,lastDay='',cursor=0,eventRows=new Map(),eventLoading=false,eventLoaded=false,eventComplete=false,localCursor=0,lastBoot='',pollBusy=false;
+function notice(s){el('notice').textContent=s;el('actions').open=true;}
+function duration(s){s=Math.max(0,Math.floor(s));let days=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return `${days} Tage, ${h} Stunden, ${m} Minuten`;}
+function intervalText(s){let h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60;return [h?`${h} ${h===1?'Stunde':'Stunden'}`:'',m?`${m} ${m===1?'Minute':'Minuten'}`:'',sec?`${sec} Sekunden`:''].filter(Boolean).join(', ');}
+function gates(){document.querySelectorAll('[data-write]').forEach(b=>{
+ const disabled=requestBusy||!current||current.busy||b.hasAttribute('data-app')&&current.storage!=='APP'||b.hasAttribute('data-usb')&&current.locked;
+ setProperty(b,'disabled',Boolean(disabled));
+});}
+async function jsonFetch(url,options={}){const c=new AbortController(),timer=setTimeout(()=>c.abort(),15000);try{const r=await fetch(url,{cache:'no-store',credentials:'omit',...options,signal:c.signal});let data=await r.json();if(!r.ok)throw Error(data.message||`HTTP ${r.status}`);return data;}finally{clearTimeout(timer);}}
+function reloadConfig(){if(!current)return;el('interval').value=current.interval_value;el('unit').value=current.interval_unit;configDirty=false;}
+async function refreshStatus(){
+ try{
+  current=await jsonFetch('/api/status');const s=current;
+  setText('recovery',s.retry_pending?`${s.retry_waiting?'NAS-Wiederaufnahme wartet':'NAS-Wiederaufnahme pausiert oder ausgeschaltet'}; ${s.retry_repair?'sichere Reparatur vorgesehen':'erneute NAS-Prüfung vorgesehen'}; nächster Versuch in ${intervalText(s.retry_seconds)}. ${s.retry_error||''}`:s.retry_error||'');
+  if(!retryDirty&&s.retry_delays){el('retryEnabled').checked=s.retry_enabled;s.retry_delays.forEach((v,n)=>setProperty(el('retry'+n),'value',String(v)));}
+  setText('state',`BERNINA WiFi Stick: ${s.busy?'Vorgang läuft – bitte warten':s.retry_waiting?'NAS nicht erreichbar – Wiederaufnahme wartet':s.locked?'Fehler / gesperrt':'Bereit'}`);
+  setProperty(el('state'),'className',s.locked&&!s.retry_waiting?'error':'');
+  setText('network',`BERNINA WiFi Stick mit WLAN verbunden: ${s.wifi_connected?'Ja':'Nein'}; Laufzeit: ${duration(s.uptime_seconds)}; Speicher: ${s.storage==='LOCKED'?'gesperrt':s.storage+' aktiv'}`);
+  setText('timer',`Automatischer Abgleich: ${s.paused?'pausiert':'alle '+intervalText(s.interval_seconds)}${!s.paused&&!s.busy?'; nächste Prüfung in '+intervalText(s.next_check_seconds):''}`);
+  setText('inventory',s.inventory_known?`Verzeichnisse: ${s.directories}; Dateien: ${s.files}${s.inventory_valid?'':' – letzter bestätigter Stand, aktuell nicht vollständig bestätigt'}`:'Verzeichnisse / Dateien: noch kein bestätigter Bestand ermittelt');
+  setText('last',`Letzter erfolgreicher Abgleich: ${s.last_success?new Date(s.last_success*1000).toLocaleString('de-CH',{timeZone:'Europe/Zurich'}):'noch nicht bekannt'}; letztes Ergebnis: ${s.last_result==='completed'?'abgeschlossen':s.last_result==='failed'?'fehlgeschlagen':'noch kein Ergebnis'}`);
+  setProperty(el('transfer'),'hidden',!s.busy);setProperty(el('progress'),'value',Math.min(100,Math.max(0,s.progress)));
+  setText('progressText',`${Math.round(s.progress)} %; ${s.files_done}/${s.files_total} Dateien`);
+  setProperty(el('screensaver'),'checked',s.screensaver);
+  setText('health',s.events_dropped?`Protokollhinweis: ${s.events_dropped} lokale Ereignisse konnten bei Verbindungsunterbruch nicht erhalten werden.`:!s.event_archive_online?'Tagesarchiv noch nicht erreichbar; lokale Meldungen werden zwischengespeichert.':'');
+  if(!configDirty&&document.activeElement!==el('interval')&&document.activeElement!==el('unit'))reloadConfig();gates();
+ }catch(e){setText('state','BERNINA WiFi Stick: nicht erreichbar – letzte Anzeige kann veraltet sein');current=null;gates();}
+}
+async function post(url,headers={}){if(requestBusy)throw Error('Eine Steueranfrage läuft bereits. Bitte warten.');let p=el('password').value;if(!p)throw Error('Passwort eingeben.');requestBusy=true;gates();try{return await jsonFetch(url,{method:'POST',headers:{'X-Bernina-Control':'1',...headers},body:p});}finally{requestBusy=false;gates();}}
+async function action(name){let headers={'X-Bernina-Action':name};if(name==='app'&&!confirm('Datenträger am Computer ausgeworfen? SD an APP übergeben?'))return;if(name==='repair'){if(!confirm('Datenträger am Computer vorher auswerfen. Die Reparatur übernimmt APP, prüft Inhalte, lädt fehlende/geänderte Dateien, entfernt nicht ausgeschlossene SD-Zusatzdaten und meldet USB nur bei Erfolg wieder an.'))return;const phrase=prompt('Zur Bestätigung exakt eingeben: DAS KANN LANGE DAUERN');if(phrase!=='DAS KANN LANGE DAUERN'){notice('Reparatur nicht bestätigt.');return;}headers['X-Bernina-Confirm']=phrase;}if(name==='reboot'){if(!confirm('Gerät im Leerlauf neu starten? Die Verbindung wird kurz unterbrochen.'))return;headers['X-Bernina-Confirm']='NEUSTART';}try{notice('Anfrage läuft …');const r=await post('/api/action',headers);notice(r.message);await refreshStatus();}catch(e){notice(e.message);}}
+async function screensaver(){const enabled=el('screensaver').checked;await action(enabled?'screensaver_on':'screensaver_off');await refreshStatus();}
+async function saveConfig(){const value=Number(el('interval').value),unit=el('unit').value;if(!Number.isInteger(value)||value<1||value*(unit==='hours'?3600:60)>604800){notice('Intervall muss zwischen 1 Minute und 7 Tagen liegen.');return;}try{const r=await post('/api/config',{'X-Bernina-Interval':String(value),'X-Bernina-Unit':unit});configDirty=false;notice(r.message);await refreshStatus();}catch(e){notice(e.message);}}
+function eventText(e){
+ const clock=t=>new Date(t*1000).toLocaleTimeString('de-CH',{timeZone:'Europe/Zurich',hour12:false});
+ const stamp=e.ts?clock(e.ts):e.received?`Empfang ${clock(e.received)} (Start vor Zeitsynchronisierung)`:'Start vor Zeitsynchronisierung (Ereigniszeit unbekannt)';
+ return `${stamp} ${e.message.replace(/^[\d:-]{8}: /,'')}`;
+}
+function renderEvents(){
+ const rows=[...eventRows.values()],anchors=new Map();
+ for(const e of rows){const t=e.ts||e.received||e.order;anchors.set(e.boot,Math.min(anchors.get(e.boot)??Infinity,t));}
+ // Keep pre-NTP startup entries before later entries of the same boot, without inventing times.
+ rows.sort((a,b)=>a.boot===b.boot?a.seq-b.seq:anchors.get(a.boot)-anchors.get(b.boot)||a.boot.localeCompare(b.boot));
+ const text=rows.map(eventText).join('\n')||'Heute noch keine Ereignisse.',node=el('events');
+ if(node.textContent!==text){const top=node.scrollTop;node.textContent=text;node.scrollTop=top;}
+}
+function logControls(){
+ el('logRefresh').disabled=eventLoading;
+ el('logRefresh').textContent=eventLoading?'Wird geladen …':'Aktualisieren';
+ el('logDownload').disabled=eventLoading||!eventLoaded||eventRows.size===0;
+ el('events').setAttribute('aria-busy',String(eventLoading));
+}
+async function loadEvents(){
+ if(eventLoading){return;}
+ if(requestBusy){el('logInfo').textContent='Eine Steueranfrage läuft. Bitte kurz warten.';return;}
+ const password=el('password').value;
+ if(!password){el('logInfo').textContent='Passwort unter Aktionen eingeben, danach aktualisieren.';return;}
+ eventLoading=true;logControls();el('logInfo').textContent='Protokoll wird geladen …';
+ try{
+  let pages=0,more=true;
+  while(more&&pages<32){
+   const previous=cursor,previousLocal=localCursor;
+   const data=await jsonFetch('/api/events?after='+cursor+'&local_after='+localCursor,{headers:{'X-Bernina-Key':password}});
+   pages++;
+   if(!Array.isArray(data.events)||!Array.isArray(data.local)||typeof data.day!=='string'||!Number.isSafeInteger(data.next)||data.next<previous||data.next>0xffffffff||typeof data.more!=='boolean'||!Number.isSafeInteger(data.local_next)||data.local_next<0||data.local_next>0xffffffff||typeof data.local_more!=='boolean'||(data.more&&data.next===previous))throw Error('Ungueltige oder unvollständige Protokollseite.');
+   for(const e of [...data.events,...data.local])if(typeof e.boot!=='string'||!Number.isSafeInteger(e.seq)||typeof e.message!=='string'||typeof e.ts!=='number')throw Error('Unvollständiger Protokolleintrag.');
+   if(lastDay&&data.day!==lastDay){lastDay=data.day;cursor=localCursor=0;eventRows.clear();eventLoaded=false;eventComplete=false;renderEvents();continue;}
+   lastDay=data.day;
+   const reboot=lastBoot&&lastBoot!==data.boot;lastBoot=data.boot;
+   const rows=reboot?data.events:[...data.events,...data.local];
+   for(const e of rows){const key=e.boot+':'+e.seq,old=eventRows.get(key);eventRows.set(key,{...old,...e,order:old?.order||Date.now()/1000});}
+   cursor=data.next;localCursor=reboot?0:data.local_next;
+   if(!reboot&&data.local_more&&localCursor===previousLocal)throw Error('Lokale Protokollseite hat keinen Fortschritt.');
+   eventLoaded=true;more=data.more||data.local_more||Boolean(reboot);
+   eventComplete=data.archive_available&&!more;
+   renderEvents();
+   const source=data.archive_available?'NAS-Tagesarchiv':data.busy?'lokaler Zwischenstand; Archiv nach Abschluss erneut laden':'lokaler Zwischenstand; NAS-Archiv derzeit nicht lesbar';
+   el('logInfo').textContent=`${lastDay==='unknown'?'Uhrzeit noch nicht synchronisiert':lastDay+' · Europe/Zurich'}; ${source}; ${eventRows.size} Einträge${more?' – weitere Seiten werden geladen …':''}${data.local_gap&&!data.archive_available?' – lokaler Puffer enthält möglicherweise nicht alle Meldungen':''}`;
+  }
+  if(more)el('logInfo').textContent+=' Weitere Seiten über „Aktualisieren“ nachladen; Anzeige ist noch unvollständig.';
+ }catch(e){
+  eventComplete=false;
+  const reason=e.name==='AbortError'?'Zeitlimit beim Laden überschritten':e instanceof TypeError?'Verbindung beim Protokollabruf unterbrochen':e.message;
+  el('logInfo').textContent='Protokoll nicht vollständig aktualisiert: '+reason+'. Erneut versuchen.'+(eventRows.size?' Bisher geladene Einträge bleiben angezeigt.':'');
+ }finally{eventLoading=false;logControls();}
+}
+function downloadEvents(){
+ if(eventLoading||!eventLoaded||eventRows.size===0){el('logInfo').textContent='Zuerst Protokolleinträge laden; noch kein Download verfügbar.';return;}
+ const heading=`BERNINA WiFi Stick – ${lastDay||'Datum unbekannt'} – ${eventComplete?'Tagesprotokoll':'UNVOLLSTÄNDIGER ZWISCHENSTAND'}\n`;
+ const b=new Blob([heading+el('events').textContent+'\n'],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download=`bernina-${lastDay||'ereignisse'}${eventComplete?'':'-teilliste'}.txt`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+el('interval').addEventListener('input',()=>configDirty=true);el('unit').addEventListener('change',()=>configDirty=true);el('reports').addEventListener('toggle',()=>{if(el('reports').open)loadEvents();});
+const poll=setInterval(async()=>{
+ if(requestBusy||eventLoading||pollBusy)return;
+ pollBusy=true;try{await refreshStatus();}finally{pollBusy=false;}
+},5000);
+logControls();gates();refreshStatus();addEventListener('pagehide',()=>{clearInterval(poll);el('password').value='';});
+
+async function saveRetry(){const delays=[0,1,2,3].map(n=>Number(el('retry'+n).value));if(delays.some((v,n)=>!Number.isInteger(v)||v<1||v>86400||n&&v<delays[n-1])){notice('Vier aufsteigende Wartezeiten zwischen 1 und 86400 Sekunden eingeben.');return;}try{const r=await post('/api/config',{'X-Bernina-Retry':el('retryEnabled').checked?'1':'0','X-Bernina-Retry-Delays':delays.join(',')});retryDirty=false;notice(r.message);await refreshStatus();}catch(e){notice(e.message);}}
+['retryEnabled','retry0','retry1','retry2','retry3'].forEach(id=>el(id).addEventListener('input',()=>retryDirty=true));

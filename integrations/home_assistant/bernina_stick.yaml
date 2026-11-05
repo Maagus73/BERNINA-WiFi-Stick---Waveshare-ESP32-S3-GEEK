@@ -1,0 +1,207 @@
+# Home Assistant package. Put URLs/password in secrets.yaml; see README.
+rest:
+  - resource: !secret bernina_stick_status_url
+    scan_interval: 10
+    timeout: 8
+    sensor:
+      - name: BERNINA WiFi Stick Status
+        unique_id: bernina_wifi_stick_status
+        value_template: "{{ value_json.operation }}"
+        json_attributes:
+          - version
+          - web_url
+          - phase
+          - files_done
+          - files_total
+          - directories
+          - files
+          - inventory_valid
+      - name: BERNINA WiFi Stick Speicher
+        unique_id: bernina_wifi_stick_storage
+        value_template: "{{ value_json.storage }}"
+      - name: BERNINA WiFi Stick Ergebnis
+        unique_id: bernina_wifi_stick_result
+        value_template: "{{ value_json.last_result }}"
+      - name: BERNINA WiFi Stick Laufzeit
+        unique_id: bernina_wifi_stick_uptime
+        value_template: "{{ value_json.uptime_seconds }}"
+        unit_of_measurement: s
+        device_class: duration
+      - name: BERNINA WiFi Stick Intervall
+        unique_id: bernina_wifi_stick_interval_seconds
+        value_template: "{{ value_json.interval_seconds }}"
+        unit_of_measurement: s
+        device_class: duration
+      - name: BERNINA WiFi Stick Intervallwert
+        unique_id: bernina_wifi_stick_interval_value
+        value_template: "{{ value_json.interval_value }}"
+      - name: BERNINA WiFi Stick Intervalleinheit
+        unique_id: bernina_wifi_stick_interval_unit
+        value_template: "{{ value_json.interval_unit }}"
+      - name: BERNINA WiFi Stick Fortschritt
+        unique_id: bernina_wifi_stick_progress
+        value_template: "{{ value_json.progress | round(1) }}"
+        unit_of_measurement: "%"
+      - name: BERNINA WiFi Stick Letzter Erfolg
+        unique_id: bernina_wifi_stick_last_success
+        value_template: "{{ value_json.last_success | int(0) | timestamp_utc if value_json.last_success | int(0) > 0 else none }}"
+        device_class: timestamp
+    binary_sensor:
+      - name: BERNINA WiFi Stick WLAN
+        unique_id: bernina_wifi_stick_wifi
+        value_template: "{{ value_json.wifi_connected }}"
+        device_class: connectivity
+      - name: BERNINA WiFi Stick Aktiv
+        unique_id: bernina_wifi_stick_busy
+        value_template: "{{ value_json.busy }}"
+        device_class: running
+      - name: BERNINA WiFi Stick Automatik pausiert
+        unique_id: bernina_wifi_stick_paused
+        value_template: "{{ value_json.paused }}"
+      - name: BERNINA WiFi Stick Bildschirmschoner
+        unique_id: bernina_wifi_stick_screensaver
+        value_template: "{{ value_json.screensaver }}"
+
+rest_command:
+  bernina_stick_aktion:
+    url: !secret bernina_stick_action_url
+    method: POST
+    content_type: text/plain
+    headers:
+      X-Bernina-Control: "1"
+      X-Bernina-Action: "{{ aktion }}"
+      X-Bernina-Confirm: "{{ bestaetigung | default('') }}"
+    payload: !secret bernina_stick_password
+  bernina_stick_intervall:
+    url: !secret bernina_stick_config_url
+    method: POST
+    content_type: text/plain
+    headers:
+      X-Bernina-Control: "1"
+      X-Bernina-Interval: "{{ states('input_number.bernina_stick_intervall') | int }}"
+      X-Bernina-Unit: "{{ 'hours' if is_state('input_select.bernina_stick_einheit','Stunden') else 'minutes' }}"
+    payload: !secret bernina_stick_password
+
+input_number:
+  bernina_stick_intervall:
+    name: BERNINA Abgleichintervall
+    min: 1
+    max: 10080
+    step: 1
+    mode: box
+input_select:
+  bernina_stick_einheit:
+    name: BERNINA Intervalleinheit
+    options: [Minuten, Stunden]
+input_text:
+  bernina_stick_reparatur_bestaetigung:
+    name: BERNINA Reparatur bestaetigen
+    max: 40
+
+template:
+  - button:
+      - name: BERNINA APP uebernehmen
+        unique_id: bernina_wifi_stick_app
+        press:
+          - action: script.bernina_stick_befehl
+            data: {aktion: app}
+      - name: BERNINA Jetzt abgleichen
+        unique_id: bernina_wifi_stick_sync
+        press:
+          - action: script.bernina_stick_befehl
+            data: {aktion: sync}
+      - name: BERNINA Automatik pausieren
+        unique_id: bernina_wifi_stick_pause
+        press:
+          - action: script.bernina_stick_befehl
+            data: {aktion: pause}
+      - name: BERNINA Automatik fortsetzen
+        unique_id: bernina_wifi_stick_resume
+        press:
+          - action: script.bernina_stick_befehl
+            data: {aktion: resume}
+      - name: BERNINA USB anmelden
+        unique_id: bernina_wifi_stick_usb
+        press:
+          - action: script.bernina_stick_befehl
+            data: {aktion: usb}
+      - name: BERNINA Spiegel reparieren
+        unique_id: bernina_wifi_stick_repair
+        press:
+          - condition: template
+            value_template: "{{ is_state('input_text.bernina_stick_reparatur_bestaetigung','DAS KANN LANGE DAUERN') }}"
+          - action: script.bernina_stick_befehl
+            data:
+              aktion: repair
+              bestaetigung: "{{ states('input_text.bernina_stick_reparatur_bestaetigung') }}"
+          - action: input_text.set_value
+            target: {entity_id: input_text.bernina_stick_reparatur_bestaetigung}
+            data: {value: ""}
+      - name: BERNINA Intervall speichern
+        unique_id: bernina_wifi_stick_save_interval
+        press:
+          - action: script.bernina_stick_intervall_speichern
+    switch:
+      - name: BERNINA Bildschirmschoner
+        unique_id: bernina_wifi_stick_screensaver_control
+        state: "{{ is_state('binary_sensor.bernina_wifi_stick_bildschirmschoner','on') }}"
+        turn_on:
+          - action: script.bernina_stick_befehl
+            data: {aktion: screensaver_on}
+        turn_off:
+          - action: script.bernina_stick_befehl
+            data: {aktion: screensaver_off}
+
+automation:
+  - id: bernina_intervall_vom_stick
+    alias: BERNINA Intervall vom Stick uebernehmen
+    triggers:
+      - trigger: homeassistant
+        event: start
+      - trigger: state
+        entity_id:
+          - sensor.bernina_wifi_stick_intervallwert
+          - sensor.bernina_wifi_stick_intervalleinheit
+    conditions:
+      - condition: template
+        value_template: "{{ states('sensor.bernina_wifi_stick_intervallwert') | int(0) > 0 and states('sensor.bernina_wifi_stick_intervalleinheit') in ['minutes','hours'] }}"
+    actions:
+      - action: input_number.set_value
+        target: {entity_id: input_number.bernina_stick_intervall}
+        data:
+          value: "{{ states('sensor.bernina_wifi_stick_intervallwert') | int }}"
+      - action: input_select.select_option
+        target: {entity_id: input_select.bernina_stick_einheit}
+        data:
+          option: "{{ 'Stunden' if is_state('sensor.bernina_wifi_stick_intervalleinheit','hours') else 'Minuten' }}"
+
+script:
+  bernina_stick_befehl:
+    alias: BERNINA geschuetzten Befehl ausfuehren
+    mode: single
+    fields:
+      aktion:
+        required: true
+        selector: {text: {}}
+      bestaetigung:
+        default: ""
+        selector: {text: {}}
+    sequence:
+      - action: rest_command.bernina_stick_aktion
+        data:
+          aktion: "{{ aktion }}"
+          bestaetigung: "{{ bestaetigung | default('') }}"
+        response_variable: antwort
+      - if: "{{ antwort.status not in [200,202] }}"
+        then:
+          - stop: "Stick hat den Auftrag abgelehnt: {{ antwort.content }}"
+            error: true
+  bernina_stick_intervall_speichern:
+    alias: BERNINA Abgleichintervall speichern
+    sequence:
+      - action: rest_command.bernina_stick_intervall
+        response_variable: antwort
+      - if: "{{ antwort.status not in [200,202] }}"
+        then:
+          - stop: "Intervall nicht gespeichert: {{ antwort.content }}"
+            error: true

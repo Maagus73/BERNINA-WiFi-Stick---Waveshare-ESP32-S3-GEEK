@@ -1,0 +1,21 @@
+BERNINA WiFi Stick — public source distribution, version 1.0.3
+
+The original project code, documentation and configuration examples are offered
+under the PolyForm Noncommercial License 1.0.0 in LICENSE, except for third-party
+material. Existing third-party rights and notices remain in force.
+
+Third-party material:
+- src/unicode_nfc_data.h contains generated Unicode canonical data.
+  Unicode License V3: LICENSES/Unicode-3.0.txt; https://www.unicode.org/license.txt
+- espressif/esp_tinyusb 2.4.0 is fetched by ESP-IDF Component Manager.
+  Apache License 2.0: LICENSES/esp_tinyusb-Apache-2.0.txt.
+- espressif/tinyusb 0.21.0~2 is fetched by ESP-IDF Component Manager.
+  MIT: LICENSES/TinyUSB-MIT.txt.
+- The PlatformIO platform, ESP-IDF framework, their bundled components and build
+  tools retain their own licenses. Their source is not included in this archive.
+  Preserve their applicable licenses/notices when redistributing built firmware.
+
+The Noncommercial restriction applies to original project material, not to
+independently licensed third-party components. No trademark rights are granted
+in BERNINA, Waveshare, Synology or other third-party names. This is an independent
+hobby project, with no claim of endorsement by those companies.

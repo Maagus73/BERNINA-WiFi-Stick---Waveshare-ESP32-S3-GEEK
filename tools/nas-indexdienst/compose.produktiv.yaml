@@ -1,0 +1,49 @@
+services:
+  index:
+    image: python:3.13-slim-bookworm
+    # Replace with numeric UID:GID of a DSM account with source read/state write access.
+    user: "1234:100"
+    working_dir: /app
+    entrypoint: ["python", "-B", "-u", "/app/server.py"]
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    pids_limit: 32
+    ports: ["127.0.0.1:18080:8080"]
+    environment:
+      NAS_EXCLUDES: "/config/nas-excludes.txt"
+      SD_EXCLUDES: "/config/sd-excludes.txt"
+      # Must match the path portion of the ESP's WEBDAV_URL, including both slashes.
+      URL_PREFIX: "/Embroidery/"
+    volumes:
+      - type: bind
+        source: ./server.py
+        target: /app/server.py
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ./credentials.json
+        target: /run/credentials.json
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: /volume1/Embroidery
+        target: /source
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ./state
+        target: /state
+        bind: {create_host_path: false}
+      - type: bind
+        source: ./nas-excludes.txt
+        target: /config/nas-excludes.txt
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ./sd-excludes.txt
+        target: /config/sd-excludes.txt
+        read_only: true
+        bind: {create_host_path: false}

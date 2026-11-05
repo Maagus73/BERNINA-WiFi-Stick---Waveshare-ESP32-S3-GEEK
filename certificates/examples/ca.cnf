@@ -1,0 +1,13 @@
+# DE: Beispiel fuer eine lokale CA; Schluessel nur lokal speichern.
+# EN: Local CA example; store its key locally only.
+[req]
+prompt = no
+distinguished_name = dn
+x509_extensions = v3_ca
+[dn]
+CN = YOUR_LOCAL_BERNINA_CA
+[v3_ca]
+basicConstraints = critical,CA:TRUE
+keyUsage = critical,keyCertSign,cRLSign
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always

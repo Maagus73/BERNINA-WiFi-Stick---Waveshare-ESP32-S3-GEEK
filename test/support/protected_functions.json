@@ -1,0 +1,47 @@
+[
+  {
+    "file": "main.c",
+    "function": "checked_mount",
+    "sha256": "ef3272a6647280b5109b39e8e3c3b662f1a915dc5cf1f6470817825de41331d3"
+  },
+  {
+    "file": "main.c",
+    "function": "mount_app",
+    "sha256": "d4ce42485142bdc9d3649be738c7031bf3409b9cdcac169e3a665b45c667bee2"
+  },
+  {
+    "file": "main.c",
+    "function": "mount_usb",
+    "sha256": "de40a9b096c2cf18c2be8b7b14bf3a3027eb38c637a2653894790010473bdf5f"
+  },
+  {
+    "file": "main.c",
+    "function": "app_access_allowed",
+    "sha256": "67318ab5c3f61cdf5e32bd3f83faca3609949fe81ab4d9a7de51ea7bd72e59ae"
+  },
+  {
+    "file": "fast_sync_adapter.inc",
+    "function": "fast_store",
+    "sha256": "613938af3382d4a3c92d7555b1b77df85a24d578a58fec82e2269fe110834e5f"
+  },
+  {
+    "file": "fast_sync_adapter.inc",
+    "function": "fast_arm",
+    "sha256": "871f11b9090e2517f71f753c7f3e7bf6e7d7b2ce7c66f3912b6738311b35cfee"
+  },
+  {
+    "file": "fast_sync_adapter.inc",
+    "function": "fast_baseline_valid",
+    "sha256": "aef547e4e244e239286857871df25e23dfc5ec838a0e1833a5ada434744e527f"
+  },
+  {
+    "file": "remote_plan_adapter.inc",
+    "function": "remote_checkpoint",
+    "sha256": "f943770be4890c3eba5c5fb4d2c6ce915fe85ac619fc602031c99467ae3f9188"
+  },
+  {
+    "file": "remote_plan_adapter.inc",
+    "function": "remote_apply",
+    "sha256": "870d59fbb4f1cf82ac700aafcb3b17362c28709e9bb16e059f7a1ed2f7c11cbb"
+  }
+]

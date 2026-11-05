@@ -1,0 +1,17 @@
+# NAS-Ausschlüsse. Diese Datei liegt im Containerprojekt, NICHT im Quellordner.
+# / am Anfang: relativ zum Hauptverzeichnis der Quelle.
+# / am Ende: Ordner einschließlich aller Unterordner und Dateien ausschließen.
+# Ohne abschließendes /: nur passende Dateien ausschließen.
+# ** als eigener Pfadteil = null oder beliebig viele Ordnerebenen.
+# * = beliebig viele Zeichen, ? = ein Zeichen, jeweils innerhalb eines Pfadteils.
+# Groß-/Kleinschreibung bei ASCII wird ignoriert. Keine [abc]-Muster oder ../.
+# Maximal 32 Regeln, je 127 ASCII-Zeichen; Kommentare dürfen Umlaute enthalten.
+# Beispiele (auskommentiert):
+# /Privat/                 kompletter Ordner; Erklärung NICHT an aktive Regel anhängen
+# /Entwuerfe/*.tmp         Dateien direkt in diesem Ordner
+# /*/@eaDir/               @eaDir genau eine Ebene unterhalb der Wurzel
+# NAS-Ausschlüsse schützen auch vorhandene SD-Gegenstücke vor Löschung.
+# BNCACHE bleibt immer firmwareseitig reserviert.
+/**/@eaDir/
+/.DS_Store
+/._*

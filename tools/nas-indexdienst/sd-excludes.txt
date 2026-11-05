@@ -1,0 +1,19 @@
+# SD-Ausschlüsse. Änderungen erfordern eine neue vollständige Vorbereitung.
+# / = Hauptverzeichnis; abschließendes / = ganzer Ordner einschließlich Inhalt.
+# Ohne abschließendes / nur Dateien. * und ? gelten innerhalb eines Pfadteils.
+# ** als eigener Pfadteil = null oder beliebig viele Ordnerebenen.
+# Kommentare stehen auf eigenen Zeilen; keine Erklärungen hinter aktiven Regeln.
+# Maximal 32 Regeln mit je 127 ASCII-Zeichen, Datei maximal 8192 UTF-8-Bytes.
+# Beispiele:
+# /EigeneDateien/          Ordner vor Vergleich, Schreiben und Löschen schützen
+# /Entwuerfe/*.bak         Dateien im genannten Ordner
+# Falls ein SD-Ausschluss auf dem NAS vorkommt, wird die Vorbereitung gesperrt.
+# Dann diesen Pfad auch im NAS ausschließen oder den SD-Ausschluss entfernen.
+# BNCACHE ist zusätzlich fest geschützt und kann nicht abgewählt werden.
+/.Spotlight-V100/
+/.Trashes/
+/.fseventsd/
+/.TemporaryItems/
+/**/@eaDir/
+/.DS_Store
+/._*
